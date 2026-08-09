@@ -7,8 +7,8 @@ export async function POST(request: Request) {
     const lightningApiUrl = process.env.LIGHTNING_API_URL;
     const identifier = process.env.LIGHTNING_API_ID;
 
-    if (!identifier) {
-      console.error('LIGHTNING_API_ID not configured');
+    if (!lightningApiUrl || !identifier) {
+      console.error('LIGHTNING_API_URL or LIGHTNING_API_ID not configured');
       return NextResponse.json(
         { error: 'Lightning authentication not configured' },
         { status: 500 }

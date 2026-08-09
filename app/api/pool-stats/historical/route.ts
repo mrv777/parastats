@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '../../../../lib/db';
 import { parseHashrate } from '../../../utils/formatters';
+import { parseHistoricalParams } from '@/app/api/lib/historical';
 
 export const dynamic = 'force-dynamic';
-
-const ALLOWED_INTERVALS = new Set(['1m', '5m', '15m', '30m', '1h']);
 
 function smoothAnomalies(data: HistoricalPoolStats[]): HistoricalPoolStats[] {
   if (data.length < 2) return data;
@@ -66,112 +65,13 @@ export interface HistoricalPoolStats {
 
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    
-    // Parse parameters with defaults
-    const period = searchParams.get('period') || '24h';
-    const interval = searchParams.get('interval') || '5m';
-    
-    if (!ALLOWED_INTERVALS.has(interval)) {
-      return new NextResponse(
-        JSON.stringify({ error: "Interval must be one of: '1m', '5m', '15m', '30m', '1h'" }),
-        { 
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-store'
-          }
-        }
-      );
-    }
-    
-    // Determine cache duration based on interval
-    let cacheDuration = 300; // Default 5 minutes
-    switch (interval) {
-      case '1m':
-        cacheDuration = 60; // 1 minute
-        break;
-      case '5m':
-        cacheDuration = 300; // 5 minutes
-        break;
-      case '15m':
-        cacheDuration = 900; // 15 minutes
-        break;
-      case '30m':
-        cacheDuration = 300; // 5 minutes
-        break;
-      case '1h':
-        cacheDuration = 3600; // 1 hour
-        break;
-    }
-    
-    // Calculate the time range based on the period
-    const now = Math.floor(Date.now() / 1000);
-    
-    // Parse period format (e.g., "18d" or "6h")
-    const periodMatch = period.match(/^([1-9]\d*)([dh])$/);
-    if (!periodMatch) {
-      return new NextResponse(
-        JSON.stringify({ error: "Period must be a positive value (e.g., '24h' or '7d')" }),
-        { status: 400, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } }
-      );
-    }
+    const parsed = parseHistoricalParams(new URL(request.url).searchParams);
+    if ('error' in parsed) return parsed.error;
+    const { intervalSeconds, cacheDuration, startTime, now } = parsed.range;
 
-    const value = parseInt(periodMatch[1], 10);
-    const unit = periodMatch[2];
-
-    // Calculate total days for max period check
-    const totalDays = unit === 'd' ? value : value / 24;
-
-    // Set max period based on the selected interval
-    let maxPeriodDays = 30; // Default max
-
-    // Apply interval-specific limits
-    if (interval === '1m') {
-      maxPeriodDays = 2; // 2 days max for 1-minute intervals
-    } else if (interval === '5m') {
-      maxPeriodDays = 10; // 10 days max for 5-minute intervals
-    }
-
-    if (totalDays > maxPeriodDays) {
-      return new NextResponse(
-        JSON.stringify({
-          error: `For ${interval} interval, period cannot exceed ${maxPeriodDays} days`
-        }),
-        { status: 400, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } }
-      );
-    }
-
-    // Calculate seconds based on unit (d for days, h for hours)
-    const multiplier = unit === 'd' ? 24 * 60 * 60 : 60 * 60;
-    const startTime = now - value * multiplier;
-    
     // Get the data from the database
     const db = getDb();
-    
-    // Parse the interval
-    let intervalSeconds;
-    switch (interval) {
-      case '1m':
-        intervalSeconds = 60;
-        break;
-      case '5m':
-        intervalSeconds = 5 * 60;
-        break;
-      case '15m':
-        intervalSeconds = 15 * 60;
-        break;
-      case '30m':
-        intervalSeconds = 30 * 60;
-        break;
-      case '1h':
-        intervalSeconds = 60 * 60;
-        break;
-      default:
-        // Default to 5 minutes
-        intervalSeconds = 5 * 60;
-    }
-    
+
     const rows = db.prepare(`
       WITH bucketed AS (
         SELECT
