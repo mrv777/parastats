@@ -40,11 +40,12 @@ export function parseHistoricalParams(
   searchParams: URLSearchParams
 ): { error: NextResponse } | { range: HistoricalRange } {
   const interval = searchParams.get('interval') || '5m';
-  const intervalSeconds = INTERVAL_SECONDS[interval];
 
-  if (!intervalSeconds) {
+  if (!Object.hasOwn(INTERVAL_SECONDS, interval)) {
     return { error: badRequest("Interval must be one of: '1m', '5m', '15m', '30m', '1h'") };
   }
+
+  const intervalSeconds = INTERVAL_SECONDS[interval];
 
   const period = searchParams.get('period') || '24h';
   const periodMatch = period.match(/^([1-9]\d*)([dh])$/);

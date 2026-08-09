@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetch } from '@/lib/http-client';
 
 export async function POST(request: NextRequest) {
   const routerBase = process.env.ROUTER_API_URL;
@@ -17,6 +16,7 @@ export async function POST(request: NextRequest) {
       method: 'POST',
       headers,
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(30_000),
     });
     const contentType = res.headers.get('content-type') ?? '';
     if (contentType.includes('application/json')) {

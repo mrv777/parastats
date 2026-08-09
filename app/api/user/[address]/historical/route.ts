@@ -77,7 +77,7 @@ export async function GET(
 
     const results = rows.flatMap(({ hashrate: rawHashrate, bucket }) => {
       const hashrate = parseHashrate(rawHashrate);
-      if (hashrate <= 0) return [];
+      if (!(hashrate > 0)) return [];
 
       return [{
         timestamp: new Date((startTime + bucket * intervalSeconds) * 1000).toISOString(),

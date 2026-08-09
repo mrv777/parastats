@@ -109,7 +109,7 @@ export async function GET(request: Request) {
     `).all(startTime, intervalSeconds, startTime, now) as HistoricalPoolStats[];
 
     const results = rows.flatMap(row => {
-      if (row.users <= 0 && row.workers <= 0 && parseHashrate(row.hashrate15m) <= 0 && parseHashrate(row.hashrate1d) <= 0) {
+      if (!(row.users > 0 || row.workers > 0 || parseHashrate(row.hashrate15m) > 0 || parseHashrate(row.hashrate1d) > 0)) {
         return [];
       }
 

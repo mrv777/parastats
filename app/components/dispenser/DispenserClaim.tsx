@@ -85,7 +85,7 @@ function buildAuctionMessage(
 }
 
 function getSafeClaimUrl(value: unknown): string | null {
-    if (typeof value !== "string") return null;
+    if (typeof value !== "string" || value === "") return null;
 
     try {
         const url = new URL(value, window.location.origin);
@@ -422,6 +422,9 @@ export default function DispenserClaim({ userId, className = "", collapsed = fal
                 window.location.assign(claimUrl);
                 return;
             }
+            if (data.claim_url) {
+                setError(`Claimed, but the redemption link could not be opened automatically: ${data.claim_url}`);
+            }
         } catch (err) {
             console.error("Claim error:", err);
             setError(getClaimErrorMessage(err));
@@ -474,6 +477,9 @@ export default function DispenserClaim({ userId, className = "", collapsed = fal
             if (claimUrl) {
                 window.location.assign(claimUrl);
                 return;
+            }
+            if (data.claim_url) {
+                setError(`Claimed, but the redemption link could not be opened automatically: ${data.claim_url}`);
             }
         } catch (err) {
             console.error("Manual claim error:", err);
